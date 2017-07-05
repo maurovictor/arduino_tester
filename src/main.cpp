@@ -27,11 +27,8 @@ void handleRoot() {
                 Serial.println(argument);
                 String command_str = server.arg(argument);
                 Serial.println(command_str);
-
                 //int correction = 10 - command_str.length();
-
                 int command = command_str.toInt();
-
 
                 shiftOut(dataPin, clockPin, MSBFIRST, byte(command));
         }
@@ -42,22 +39,10 @@ void handleRoot() {
 void zerar()
 {
         digitalWrite(latchPin, LOW);
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//16
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//15
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//14
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//13
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//12
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//11
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//10
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//9
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//8
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//7
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//6
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//5
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//4
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//3
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//2
-        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//1
+        for(int i=1; i<=16; i++)
+        {
+                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
+        }
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
 }
@@ -112,78 +97,6 @@ void setup(){
         }
 
         server.on("/", handleRoot);
-
-        server.on("/2byte0", []{
-                digitalWrite(latchPin, LOW);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//16
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//15
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//14
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//13
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//12
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//11
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//10
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//9
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//8
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//7
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//6
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//5
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//4
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//3
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//2
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);//1
-                digitalWrite(latchPin, HIGH);
-                delay(1);
-                digitalWrite(latchPin, LOW);
-                server.send(200, "text/plain", "apaga tudo");
-                Serial.println(server.args());
-        });
-        server.on("/2byte1",[]{
-                digitalWrite(latchPin, LOW);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                digitalWrite(latchPin, HIGH);
-                delay(1);
-                digitalWrite(latchPin, LOW);
-                server.send(200, "text/plain", "liga tudo");
-        });
-
-        server.on("/l_d",[]{
-                digitalWrite(latchPin, LOW);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b11111111);
-                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
-                digitalWrite(latchPin, HIGH);
-                delay(1);
-                digitalWrite(latchPin, LOW);
-                server.send(200, "text/plain", "liga tudo");
-        });
         server.onNotFound(handleNotFound);
         server.begin();
         Serial.println("HTTP server started");
