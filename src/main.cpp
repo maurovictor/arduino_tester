@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <string>
 #include <ESP8266WiFi.h>
@@ -7,8 +6,9 @@
 #include <ESP8266mDNS.h>
 
 
-const char* ssid = "Net Virtua Jonatan";
-const char* password = "16807864";
+const char* ssid = "jsplacas";
+const char* password = "12345";
+//const char* password = "16807864";
 
 //Pin connected to ST_CP of 74HC595
 int latchPin = 12;
@@ -19,6 +19,7 @@ int dataPin = 5;
 
 ESP8266WebServer server(80);
 
+//Handle the request with the commants for each line of relays(columns)
 void handleRoot() {
         digitalWrite(latchPin, LOW);
         for (int i=8; i>=1; i--)
@@ -27,24 +28,25 @@ void handleRoot() {
                 Serial.println(argument);
                 String command_str = server.arg(argument);
                 Serial.println(command_str);
-                //int correction = 10 - command_str.length();
                 int command = command_str.toInt();
 
-                shiftOut(dataPin, clockPin, MSBFIRST, byte(command));
+                shiftOut(dataPin, clockPin, MSBFIRST, command);
         }
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
+        server.send(200, "text/plain", "Command received and executed");
 }
 
 void zerar()
 {
         digitalWrite(latchPin, LOW);
-        for(int i=1; i<=16; i++)
+        for(int i=1; i<=8; i++)
         {
                 shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
         }
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
+        server.send(200, "text/plain", "Todos os reles abertos");
 }
 
 void handleNotFound(){
@@ -73,8 +75,8 @@ void setup(){
         //Safty procedure
         digitalWrite(2, LOW);
         zerar();
+        zerar();
         digitalWrite(2, HIGH);
-
 
         //Serial
         Serial.begin(9600);
@@ -97,6 +99,7 @@ void setup(){
         }
 
         server.on("/", handleRoot);
+        server.on("/zerar", zerar);
         server.onNotFound(handleNotFound);
         server.begin();
         Serial.println("HTTP server started");
