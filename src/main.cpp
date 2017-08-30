@@ -11,27 +11,36 @@ const char* password = "12345";
 //const char* password = "16807864";
 
 //Pin connected to ST_CP of 74HC595
-int latchPin = 12;
+int latchPin = 4;
 //Pin connected to SH_CP of 74HC595
 int clockPin = 14;
 ////Pin connected to DS of 74HC595
-int dataPin = 5;
+int dataPin = 12;
 
 ESP8266WebServer server(80);
 
 //Handle the request with the commants for each line of relays(columns)
+int registers[16];
 void handleRoot() {
         digitalWrite(latchPin, LOW);
+        //Set the 9th byte as 0b01000000
+        for (int i=16; i>=9; i--)
+        {
+                registers[i] = 0;
+                shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
+        }
+
         for (int i=8; i>=1; i--)
         {
                 String argument = "byte_" + String(i);
                 Serial.println(argument);
                 String command_str = server.arg(argument);
                 Serial.println(command_str);
+                registers[i] = command_str.toInt();
                 int command = command_str.toInt();
-
                 shiftOut(dataPin, clockPin, MSBFIRST, command);
         }
+
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
         server.send(200, "text/plain", "Command received and executed");
@@ -56,7 +65,7 @@ void handleNotFound(){
         message += "\nMethod: ";
         message += (server.method() == HTTP_GET)?"GET":"POST";
         message += "\nArguments: ";
-        message  += server.args();
+        message += server.args();
         message += "\n";
         for (uint8_t i=0; i<server.args(); i++){
                 message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
@@ -65,19 +74,61 @@ void handleNotFound(){
 
 }
 
+int phase_state = 0;
+void switch_phase(){
+        registers[16] = 0b11111111;
+        if (phase_state == 0)
+        {
+                for (int i=16; i>=9; i--)
+                {
+                        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000111);
+                }
+
+                for (int i=8; i>=1; i--)
+                {
+                        shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
+                }
+                phase_state = 1;
+        }
+        else
+        {
+                for (int i=16; i>=9; i--)
+                {
+                        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
+                }
+
+                for (int i=8; i>=1; i--)
+                {
+                        shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
+                }
+                phase_state = 0;
+        }
+
+        digitalWrite(latchPin, HIGH);
+        digitalWrite(latchPin, LOW);
+        server.send(200, "text/plain", "Phase relay turned on ");
+}
+
 void setup(){
         //set pins to output so you can control the shift register
-        pinMode(2, OUTPUT);
+        pinMode(5, OUTPUT);
         pinMode(latchPin, OUTPUT);
         pinMode(clockPin, OUTPUT);
         pinMode(dataPin, OUTPUT);
-
         //Safty procedure
+        /*
         digitalWrite(2, LOW);
-        zerar();
-        zerar();
         digitalWrite(2, HIGH);
-
+        */
+        zerar();
+        // Safety procedure, wait a while before turn the relays on
+        for (int i=0;i<10; i++)
+        {
+                digitalWrite(5,HIGH);
+                delay(300);
+                digitalWrite(5, LOW);
+                delay(300);
+        }
         //Serial
         Serial.begin(9600);
         WiFi.begin(ssid, password);
@@ -99,6 +150,7 @@ void setup(){
         }
 
         server.on("/", handleRoot);
+        server.on("/activate_phase", switch_phase);
         server.on("/zerar", zerar);
         server.onNotFound(handleNotFound);
         server.begin();
