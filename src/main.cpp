@@ -7,7 +7,7 @@
 
 
 const char* ssid = "jsplacas";
-const char* password = "12345";
+const char* password = "3132333435";
 //const char* password = "16807864";
 
 //Pin connected to ST_CP of 74HC595
@@ -21,26 +21,33 @@ ESP8266WebServer server(80);
 
 //Handle the request with the commants for each line of relays(columns)
 int registers[16];
+int phase_state = 0;
+int buttonState;
+int lastButtonState = LOW;
+
 void handleRoot() {
+        phase_state = 0;
         digitalWrite(latchPin, LOW);
         //Set the 9th byte as 0b01000000
-        for (int i=16; i>=9; i--)
+        for (int i=15; i>=8; i--)
         {
                 registers[i] = 0;
                 shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
         }
-
-        for (int i=8; i>=1; i--)
+        for (int i=7; i>=0; i--)
         {
                 String argument = "byte_" + String(i);
-                Serial.println(argument);
+                //Serial.println(argument);
                 String command_str = server.arg(argument);
-                Serial.println(command_str);
+                //Serial.println(command_str);
                 registers[i] = command_str.toInt();
                 int command = command_str.toInt();
                 shiftOut(dataPin, clockPin, MSBFIRST, command);
         }
-
+        for (int i=0; i<=15; i++)
+        {
+                Serial.println(registers[i]);
+        }
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
         server.send(200, "text/plain", "Command received and executed");
@@ -49,7 +56,7 @@ void handleRoot() {
 void zerar()
 {
         digitalWrite(latchPin, LOW);
-        for(int i=1; i<=8; i++)
+        for(int i=0; i<=7; i++)
         {
                 shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
         }
@@ -71,20 +78,32 @@ void handleNotFound(){
                 message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
         }
         server.send(404, "text/plain", message);
-
 }
 
-int phase_state = 0;
+
+
 void switch_phase(){
-        registers[16] = 0b11111111;
+        delayMicroseconds(158000);
+        int reading = digitalRead(2);
+
         if (phase_state == 0)
         {
-                for (int i=16; i>=9; i--)
-                {
-                        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000111);
+                // Unarm relays when the button is pressed for too long
+                unsigned long int pressed_btn_counting = 0;
+                while(digitalRead(2) == 0){
+                        delayMicroseconds(100);
+                        pressed_btn_counting++;
+                        if (pressed_btn_counting >= 20000)
+                        {
+                                for(int i=15; i>=0; i --)
+                                        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
+                        }
                 }
-
-                for (int i=8; i>=1; i--)
+                registers[15] =  255;
+                for (int i=15; i>=8; i--) {
+                        shiftOut(dataPin, clockPin, MSBFIRST, 0b11111100);
+                }
+                for (int i=7; i>=0; i--)
                 {
                         shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
                 }
@@ -92,36 +111,40 @@ void switch_phase(){
         }
         else
         {
-                for (int i=16; i>=9; i--)
+                registers[15] = 0;
+                for (int i=15; i>=8; i--)
                 {
                         shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
                 }
-
-                for (int i=8; i>=1; i--)
+                for (int i=7; i>=0; i--)
                 {
                         shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
                 }
                 phase_state = 0;
         }
-
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
-        server.send(200, "text/plain", "Phase relay turned on ");
+        Serial.println("Switch ok");
+        Serial.println();
+        for (int i=0; i<=15; i++)
+        {
+                Serial.print(registers[i]);
+                Serial.print(" | ");
+        }
+        server.send(200, "text/plain", "Phase relay switched");
 }
 
 void setup(){
         //set pins to output so you can control the shift register
         pinMode(5, OUTPUT);
+        pinMode(2, INPUT);
+        pinMode(0, OUTPUT);
         pinMode(latchPin, OUTPUT);
         pinMode(clockPin, OUTPUT);
         pinMode(dataPin, OUTPUT);
-        //Safty procedure
-        /*
-        digitalWrite(2, LOW);
-        digitalWrite(2, HIGH);
-        */
         zerar();
         // Safety procedure, wait a while before turn the relays on
+        // The relays will working after 10 cycles on pin 5
         for (int i=0;i<10; i++)
         {
                 digitalWrite(5,HIGH);
@@ -144,17 +167,16 @@ void setup(){
         Serial.println(ssid);
         Serial.print("IP address: ");
         Serial.println(WiFi.localIP());
-
         if (MDNS.begin("esp8266")) {
                 Serial.println("MDNS responder started");
         }
-
         server.on("/", handleRoot);
         server.on("/activate_phase", switch_phase);
         server.on("/zerar", zerar);
         server.onNotFound(handleNotFound);
         server.begin();
         Serial.println("HTTP server started");
+        attachInterrupt(digitalPinToInterrupt(2), switch_phase, FALLING);
 }
 
 void loop(){
