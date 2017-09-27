@@ -8,8 +8,8 @@
 
 const char* ssid = "jsplacas";
 const char* password = "3132333435";
-//const char* password = "16807864";
 
+ESP8266WebServer server(80);
 //Pin connected to ST_CP of 74HC595
 int latchPin = 4;
 //Pin connected to SH_CP of 74HC595
@@ -17,18 +17,34 @@ int clockPin = 14;
 ////Pin connected to DS of 74HC595
 int dataPin = 12;
 
-ESP8266WebServer server(80);
-
+int btn1 = 2;
+int btn2 = 0;
 //Handle the request with the commants for each line of relays(columns)
 int registers[16];
 int phase_state = 0;
-int buttonState;
-int lastButtonState = LOW;
+unsigned long int lastTime=0;
 
-void handleRoot() {
+int send_byte ;
+int protec_state = 0;
+int leading_bytes;
+
+
+int refresh_device(int send_byte, int  registers[]){
+        digitalWrite(latchPin, LOW);
+        for (int i=15; i>=8; i--) {
+                shiftOut(dataPin, clockPin, MSBFIRST, send_byte);
+        }
+        for (int i=7; i>=0; i--)
+        {
+                shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
+        }
+        digitalWrite(latchPin, HIGH);
+        digitalWrite(latchPin, LOW);
+}
+void handleRoot()
+{
         phase_state = 0;
         digitalWrite(latchPin, LOW);
-        //Set the 9th byte as 0b01000000
         for (int i=15; i>=8; i--)
         {
                 registers[i] = 0;
@@ -53,8 +69,7 @@ void handleRoot() {
         server.send(200, "text/plain", "Command received and executed");
 }
 
-void zerar()
-{
+void zerar(){
         digitalWrite(latchPin, LOW);
         for(int i=0; i<=7; i++)
         {
@@ -80,26 +95,135 @@ void handleNotFound(){
         server.send(404, "text/plain", message);
 }
 
-
-
 void switch_phase(){
-        delayMicroseconds(158000);
-        int reading = digitalRead(2);
-
         if (phase_state == 0)
         {
-                // Unarm relays when the button is pressed for too long
-                unsigned long int pressed_btn_counting = 0;
-                while(digitalRead(2) == 0){
+                leading_bytes = 0b11111100;
+                // Open contact relays when the button is pressed for too long
+                int pressed_btn_counting = 0;
+                while(digitalRead(btn1) == 0){
                         delayMicroseconds(100);
                         pressed_btn_counting++;
-                        if (pressed_btn_counting >= 20000)
+                        if (pressed_btn_counting >= 500)
                         {
-                                for(int i=15; i>=0; i --)
-                                        shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
+                                if(protec_state == 0)
+                                {
+                                        send_byte = leading_bytes & 0b11111101 ;
+                                        Serial.print(String(send_byte, BIN));
+                                        Serial.print("    ::");
+                                }
+                                else{
+                                        if(protec_state==1)
+                                        {
+                                                send_byte = leading_bytes | 0b00000010;
+                                                Serial.print(String(send_byte, BIN));
+                                                Serial.print("    ::");
+                                        }
+                                }
+                                refresh_device(send_byte, registers);
+                                phase_state = 1;
                         }
                 }
-                registers[15] =  255;
+        }
+        else
+        {
+                leading_bytes = 0b00000000;
+                int pressed_btn_counting = 0;
+                while(digitalRead(btn1) == 0){
+                        delayMicroseconds(100);
+                        pressed_btn_counting++;
+                        if (pressed_btn_counting >= 500)
+                        {
+                                if(protec_state == 0)
+                                {
+                                        send_byte = leading_bytes & 0b11111101 ;
+                                }
+                                else{
+                                        if(protec_state==1)
+                                        {
+                                                send_byte = leading_bytes | 0b00000010;
+                                        }
+                                }
+                                refresh_device(send_byte, registers);
+                                phase_state = 0;
+                        }
+                }
+        }
+        Serial.println("Switch ok");
+        Serial.println();
+        server.send(200, "text/plain", "Phase relay switched");
+}
+
+void switch_protection(){
+        if (protec_state == 0)
+        {
+                int pressed_btn_counting = 0;
+                while(digitalRead(btn2) == 0){
+                        delayMicroseconds(100);
+                        pressed_btn_counting++;
+                        if (pressed_btn_counting >= 500)
+                        {
+                                //Mudança de Estado
+                                if(protec_state == 0)
+                                {
+                                        send_byte = leading_bytes | 0b00000010;
+                                        Serial.println(String(send_byte));
+                                }
+                                else{
+                                        if(protec_state==1)
+                                        {
+                                                send_byte = leading_bytes & 0b11111101;
+                                                Serial.println(String(send_byte));
+                                        }
+                                }
+                                refresh_device(send_byte, registers);
+                                protec_state = 1;
+                        }
+                }
+        }
+        else
+        {
+                if(phase_state==0){
+                        leading_bytes = 0b00000000;
+                }
+                else{
+                        leading_bytes = 0b11111100;
+                }
+                int pressed_btn_counting = 0;
+                while(digitalRead(btn2) == 0){
+                        delayMicroseconds(100);
+                        pressed_btn_counting++;
+                        if (pressed_btn_counting >= 500)
+                        {
+                                //Mudança de Estado
+                                if(protec_state == 0)
+                                {
+                                        send_byte = leading_bytes | 0b00000010;
+                                        protec_state = 0;
+                                        Serial.println(String(send_byte));
+                                }
+                                else{
+                                        if(protec_state==1)
+                                        {
+                                                send_byte = leading_bytes & 0b11111101;
+                                                protec_state = 0;
+                                                Serial.println(String(send_byte));
+                                        }
+                                }
+                                //Atualiza
+                                refresh_device(send_byte, registers);
+                                protec_state = 0;
+                        }
+                }
+        }
+        Serial.println("Switch ok");
+        Serial.println();
+        server.send(200, "text/plain", "Protection relay switched");
+}
+
+void web_switch_phase(){
+        if (phase_state == 0)
+        {
                 for (int i=15; i>=8; i--) {
                         shiftOut(dataPin, clockPin, MSBFIRST, 0b11111100);
                 }
@@ -111,7 +235,6 @@ void switch_phase(){
         }
         else
         {
-                registers[15] = 0;
                 for (int i=15; i>=8; i--)
                 {
                         shiftOut(dataPin, clockPin, MSBFIRST, 0b00000000);
@@ -131,14 +254,14 @@ void switch_phase(){
                 Serial.print(registers[i]);
                 Serial.print(" | ");
         }
-        server.send(200, "text/plain", "Phase relay switched");
+        server.send(200, "text/plain", "Phase relay switched from web");
 }
 
 void setup(){
         //set pins to output so you can control the shift register
+        pinMode(btn1, INPUT);
+        pinMode(btn2, INPUT);
         pinMode(5, OUTPUT);
-        pinMode(2, INPUT);
-        pinMode(0, OUTPUT);
         pinMode(latchPin, OUTPUT);
         pinMode(clockPin, OUTPUT);
         pinMode(dataPin, OUTPUT);
@@ -156,7 +279,6 @@ void setup(){
         Serial.begin(9600);
         WiFi.begin(ssid, password);
         Serial.println("");
-
         // Wait for connection
         while (WiFi.status() != WL_CONNECTED) {
                 delay(9600);
@@ -171,12 +293,13 @@ void setup(){
                 Serial.println("MDNS responder started");
         }
         server.on("/", handleRoot);
-        server.on("/activate_phase", switch_phase);
+        server.on("/activate_phase", web_switch_phase);
         server.on("/zerar", zerar);
         server.onNotFound(handleNotFound);
         server.begin();
         Serial.println("HTTP server started");
-        attachInterrupt(digitalPinToInterrupt(2), switch_phase, FALLING);
+        attachInterrupt(digitalPinToInterrupt(btn2), switch_protection, FALLING);
+        attachInterrupt(digitalPinToInterrupt(btn1), switch_phase, FALLING); //Since the button is pulled up it is better to trigger the interrupt with the FALLING transition
 }
 
 void loop(){
