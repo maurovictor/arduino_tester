@@ -38,6 +38,7 @@ int refresh_device(int send_byte, int  registers[]){
         {
                 shiftOut(dataPin, clockPin, MSBFIRST, registers[i]);
         }
+        Serial.println("Data sent to matrix!");
         digitalWrite(latchPin, HIGH);
         digitalWrite(latchPin, LOW);
 }
@@ -99,9 +100,8 @@ void switch_phase(){
         if (phase_state == 0)
         {
                 leading_bytes = 0b11111100;
-                // Open contact relays when the button is pressed for too long
                 int pressed_btn_counting = 0;
-                while(digitalRead(btn1) == 0){
+                while(digitalRead(btn2) == 0){
                         delayMicroseconds(100);
                         pressed_btn_counting++;
                         if (pressed_btn_counting >= 500)
@@ -109,8 +109,6 @@ void switch_phase(){
                                 if(protec_state == 0)
                                 {
                                         send_byte = leading_bytes & 0b11111101 ;
-                                        Serial.print(String(send_byte, BIN));
-                                        Serial.print("    ::");
                                 }
                                 else{
                                         if(protec_state==1)
@@ -120,6 +118,11 @@ void switch_phase(){
                                                 Serial.print("    ::");
                                         }
                                 }
+                                if (pressed_btn_counting == 500)
+                                {
+                                        Serial.print(String(send_byte, BIN));
+                                }
+                                //Atualiza
                                 refresh_device(send_byte, registers);
                                 phase_state = 1;
                         }
@@ -129,7 +132,7 @@ void switch_phase(){
         {
                 leading_bytes = 0b00000000;
                 int pressed_btn_counting = 0;
-                while(digitalRead(btn1) == 0){
+                while(digitalRead(btn2) == 0){
                         delayMicroseconds(100);
                         pressed_btn_counting++;
                         if (pressed_btn_counting >= 500)
@@ -158,24 +161,33 @@ void switch_protection(){
         if (protec_state == 0)
         {
                 int pressed_btn_counting = 0;
-                while(digitalRead(btn2) == 0){
+                while(digitalRead(btn1) == 0){
                         delayMicroseconds(100);
                         pressed_btn_counting++;
                         if (pressed_btn_counting >= 500)
                         {
-                                //Mudança de Estado
-                                if(protec_state == 0)
+                                if (phase_state == 0)
                                 {
+                                        leading_bytes = 0b00000000;
                                         send_byte = leading_bytes | 0b00000010;
-                                        Serial.println(String(send_byte));
+                                        refresh_device(send_byte, registers);
                                 }
-                                else{
-                                        if(protec_state==1)
+                                else
+                                {
+                                        if(phase_state == 1)
                                         {
-                                                send_byte = leading_bytes & 0b11111101;
-                                                Serial.println(String(send_byte));
+                                                leading_bytes = 0b11111100;
+                                                send_byte = leading_bytes | 0b00000010;
+                                                refresh_device(send_byte, registers);
                                         }
                                 }
+                                if(pressed_btn_counting ==500)
+                                {
+                                        Serial.println(String(send_byte, BIN));
+                                        Serial.println(String(leading_bytes, BIN));
+                                        Serial.println(String(phase_state, BIN));
+                                }
+                                //Atualiza
                                 refresh_device(send_byte, registers);
                                 protec_state = 1;
                         }
@@ -183,32 +195,31 @@ void switch_protection(){
         }
         else
         {
-                if(phase_state==0){
-                        leading_bytes = 0b00000000;
-                }
-                else{
-                        leading_bytes = 0b11111100;
-                }
                 int pressed_btn_counting = 0;
-                while(digitalRead(btn2) == 0){
+                while(digitalRead(btn1) == 0){
                         delayMicroseconds(100);
                         pressed_btn_counting++;
                         if (pressed_btn_counting >= 500)
                         {
                                 //Mudança de Estado
-                                if(protec_state == 0)
-                                {
-                                        send_byte = leading_bytes | 0b00000010;
-                                        protec_state = 0;
-                                        Serial.println(String(send_byte));
+                                if (phase_state == 0){
+                                        leading_bytes = 0b00000000;
+                                        send_byte = leading_bytes & 0b11111101;
+                                        refresh_device(send_byte, registers);
                                 }
-                                else{
-                                        if(protec_state==1)
+                                else {
+                                        if(phase_state == 1)
                                         {
+                                                leading_bytes = 0b11111100;
                                                 send_byte = leading_bytes & 0b11111101;
-                                                protec_state = 0;
-                                                Serial.println(String(send_byte));
+                                                refresh_device(send_byte, registers);
                                         }
+                                }
+                                if (pressed_btn_counting == 500)
+                                {
+                                        Serial.println(String(send_byte, BIN));
+                                        Serial.println(String(leading_bytes, BIN));
+                                        Serial.println(String(phase_state, BIN));
                                 }
                                 //Atualiza
                                 refresh_device(send_byte, registers);
@@ -298,8 +309,8 @@ void setup(){
         server.onNotFound(handleNotFound);
         server.begin();
         Serial.println("HTTP server started");
-        attachInterrupt(digitalPinToInterrupt(btn2), switch_protection, FALLING);
-        attachInterrupt(digitalPinToInterrupt(btn1), switch_phase, FALLING); //Since the button is pulled up it is better to trigger the interrupt with the FALLING transition
+        attachInterrupt(digitalPinToInterrupt(btn1), switch_protection, FALLING);
+        attachInterrupt(digitalPinToInterrupt(btn2), switch_phase, FALLING); //Since the button is pulled up it is better to trigger the interrupt with the FALLING transition
 }
 
 void loop(){
