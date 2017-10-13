@@ -32,11 +32,13 @@ int leading_bytes = 0;
 void handleRoot()
 {
         phase_state = 0;
-        digitalWrite(latchPin, LOW);
+        Serial.print('s');
+        Serial.print('t');
+        Serial.print('a');
+        Serial.print('r');
         for (int i=15; i>=8; i--)
         {
                 registers[i] = 0;
-                Serial.println(0b00000000);
         }
         for (int i=7; i>=0; i--)
         {
@@ -45,15 +47,11 @@ void handleRoot()
                 String command_str = server.arg(argument);
                 //Serial.println(command_str);
                 registers[i] = command_str.toInt();
-                int command = command_str.toInt();
-                Serial.println(command);
         }
-        for (int i=0; i<=15; i++)
+        for (int i=15; i>=0; i--)
         {
-                Serial.println(registers[i]);
+                Serial.write(registers[i]);
         }
-        digitalWrite(latchPin, HIGH);
-        digitalWrite(latchPin, LOW);
         server.send(200, "text/plain", "Command received and executed");
 }
 
@@ -87,7 +85,7 @@ void web_switch_phase(){
         Serial.print('s');
         Serial.print('t');
         Serial.print('a');
-        Serial.println('r');
+        Serial.print('r');
 
         if (phase_state == 0)
         {
@@ -95,20 +93,20 @@ void web_switch_phase(){
                 {
                         for (int i=15; i>=8; i--)
                         {
-                                Serial.println(0b00000100);
+                                Serial.write(0b11111100);
                         }
                         for (int i=7; i>=0; i--){
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 else if(protec_state == 1)
                 {
                         for (int i=15; i>=8; i--)
                         {
-                                Serial.println(0b00000110);
+                                Serial.write(0b11111110);
                         }
                         for (int i=7; i>=0; i--){
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 phase_state = 1;
@@ -119,22 +117,22 @@ void web_switch_phase(){
                 {
                         for (int i=15; i>=8; i--)
                         {
-                                Serial.println(0b00000000);
+                                Serial.write(0b00000000);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 else if(protec_state == 1)
                 {
                         for (int i=15; i>=8; i--)
                         {
-                                Serial.println(0b00000010);
+                                Serial.write(0b00000010);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 phase_state = 0;
@@ -146,28 +144,28 @@ void web_switch_protec(){
         Serial.print('s');
         Serial.print('t');
         Serial.print('a');
-        Serial.println('r');
+        Serial.print('r');
 
         if (protec_state == 0)
         {
                 if(phase_state == 0)
                 {
                         for (int i=15; i>=8; i--){
-                                Serial.println(0b00000010);
+                                Serial.write(0b00000010);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 else if(phase_state == 1)
                 {
                         for (int i=15; i>=8; i--){
-                                Serial.println(0b00000110);
+                                Serial.write(0b11111110);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 protec_state = 1;
@@ -177,38 +175,26 @@ void web_switch_protec(){
                 if(phase_state == 0)
                 {
                         for (int i=15; i>=8; i--){
-                                Serial.println(0b00000000);
+                                Serial.write(0b00000000);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 else if(phase_state == 1)
                 {
                         for (int i=15; i>=8; i--){
-                                Serial.println(0b00000100);
+                                Serial.write(0b11111100);
                         }
                         for (int i=7; i>=0; i--)
                         {
-                                Serial.println(registers[i]);
+                                Serial.write(registers[i]);
                         }
                 }
                 protec_state = 0;
         }
-        /*
-        digitalWrite(latchPin, HIGH);
-        digitalWrite(latchPin, LOW);
-        Serial.println("Switch ok");
-        Serial.println();
-        for (int i=0; i<=15; i++)
-        {
-                Serial.print(registers[i]);
-                Serial.print(" | ");
-        }
-        */
         server.send(200, "text/plain", "Phase relay switched from web");
-
 }
 
 void setup(){
